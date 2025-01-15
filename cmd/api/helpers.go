@@ -9,6 +9,9 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// define an envelope type for enveloping the json response
+type envelope map[string]any
+
 func (app *application) readIDParam(r *http.Request) (int64, error) {
 	// when httprouter parsing a request, any interpolated URL parameters will be
 	// stored in the request context. we can use the ParamsFromContext() function
@@ -24,24 +27,29 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 	return id, nil
 }
 
-func (app *application) writeJSON(w http.ResponseWriter, status int, data any, headers http.Header) error {
-    // Encode the data into JSON, return error if there is any
-    js, err := json.Marshal(data)
-    if err != nil {
-        return err
-    }
+func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
+	// Encode the data into JSON, return error if there is any
+	// Using the json.MarshalIndent () instead of the json.Marshal () so that extra whitespace is added
+	// to the encoding JSON. here we use no line prefix "", and tab index ("\t"), for each element
 
-    // append a new line to make it easy to read it in the terminal
-    js = append(js, '\n')
+	// But using the json.MarshalIndent() function instade of json.Marshal() will impact on the performance slightly.
+	// Because go need's to do extra work for the whitespace and the response []byte will be slightly larger. but not that big of a deal
+	js, err := json.MarshalIndent(data, "", "\t")
+	if err != nil {
+		return err
+	}
 
-    for key, value := range headers {
-        w.Header()[key] = value
-    }
+	// append a new line to make it easy to read it in the terminal
+	js = append(js, '\n')
 
-    // Adding the w.headers ("Content-type", "application/json")
-    w.Header().Set("Content-type", "application/json")
-    w.WriteHeader(status)
-    w.Write(js)
+	for key, value := range headers {
+		w.Header()[key] = value
+	}
 
-    return nil
+	// Adding the w.headers ("Content-type", "application/json")
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(status)
+	w.Write(js)
+
+	return nil
 }
