@@ -13,7 +13,7 @@ type Movie struct {
 	CreatedAt time.Time `json:"-"` // Use the '-' directive to hide some this field from the response
 	Title     string    `json:"title"`
 	Year      int32     `json:"year,omitempty"` // the omitempty will hide the field only if the value is empty
-	RunTime   int32     `json:"run_time,omitempty,string"` // if we add the string directive, the RunTime field will be shown as a string in the response
+	RunTime   Runtime     `json:"run_time,omitempty"` // if we add the string directive, the RunTime field will be shown as a string in the response
 	Genres    []string  `json:"genres,omitempty"`
 	Version   int32     `json:"version"`
 }

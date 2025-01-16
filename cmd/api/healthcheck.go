@@ -20,7 +20,7 @@ func (app *application) healthcheckHandler(w http.ResponseWriter, r *http.Reques
 	// Why do we need Marshal() => to encode our GO code into JSON format
 	err := app.writeJSON(w, http.StatusOK, envelope, nil)
 	if err != nil {
-		app.logger.Error(err.Error())
-		http.Error(w, "The server encountered a problem and could not process your request", http.StatusInternalServerError)
+        // here using custom erro method for showing the server error response
+        app.serverErrorResponse(w, r, err)
 	}
 }
