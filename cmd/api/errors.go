@@ -39,16 +39,15 @@ func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Reque
 	app.errorResponse(w, r, http.StatusInternalServerError, message)
 }
 
-// the notFound() method will be used to send the 404 not found error and a json message to the user
-func (app *application) notFound(w http.ResponseWriter, r *http.Request) {
+// the notFoundResponse() method will be used to send the 404 not found error and a json message to the user
+func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request) {
 	message := "the requested resources could not found"
 	app.errorResponse(w, r, http.StatusNotFound, message)
 }
 
-// the methodNotAllowed () method will be send the 405 status error message to the user if user
+// the methodNotAllowedResponse () method will be send the 405 status error message to the user if user
 // enter the wrong request, like GET instead of POST
-func (app *application) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
+func (app *application) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
 	message := fmt.Sprintf("the %s method is not supported for this resources", r.Method)
 	app.errorResponse(w, r, http.StatusMethodNotAllowed, message)
 }
-
