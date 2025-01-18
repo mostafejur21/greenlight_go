@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
+	"structs"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -57,14 +59,22 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data envelo
 }
 
 func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+	// set the max json body size.
+	maxBytes := 1_048_576 // (1MB)
+	// use the r.MaxBytesReader () to limit the max read
+	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
+
+	dec := json.NewDecoder(r.Body)
+	// this DisallowUnknownFields () methods will not allow any unknown fields.
+	dec.DisallowUnknownFields()
 	// decode the json body into the terget destination (dst)
-	err := json.NewDecoder(r.Body).Decode(dst)
+	err := dec.Decode(dst)
 	if err != nil {
 		// if there is any error during the decoding phase
 		var syntextError *json.SyntaxError
 		var unmarshalTypeError *json.UnmarshalTypeError
 		var invalidUnmarshalError *json.InvalidUnmarshalError
-
+		var maxBytesError *http.MaxBytesError
 		switch {
 		// use the errors.As() function to check weather the error has a type of *json.SyntaxError
 		case errors.As(err, &syntextError):
@@ -81,16 +91,28 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 			}
 
 			return fmt.Errorf("body contains badly formed JSON (at the %d)", syntextError.Offset)
-        case errors.Is(err, io.EOF):
-            return errors.New("body must not be empty")
-        // this json.InvalidUnmarshalError error will be returned if we pass something that is not
-        // a non-nil pointer to Decode(), we catch that error and panic and stop the server
-        case errors.As(err, &invalidUnmarshalError):
-            panic(err)
-        // for anything else, we just simply return the err
-        default:
-            return err
+		case errors.Is(err, io.EOF):
+			return errors.New("body must not be empty")
+		// if the json has a field that cannot turn into the destination.
+		case strings.HasPrefix(err.Error(), "json: unknown field "):
+			fildName := strings.TrimPrefix(err.Error(), "json: unknown field ")
+			return fmt.Errorf("body contain unknown fields %s", fildName)
+		case errors.As(err, &maxBytesError):
+			return fmt.Errorf("body must not be larger than %d bytes", maxBytesError.Limit)
+		// this json.InvalidUnmarshalError error will be returned if we pass something that is not
+		// a non-nil pointer to Decode(), we catch that error and panic and stop the server
+		case errors.As(err, &invalidUnmarshalError):
+			panic(err)
+		// for anything else, we just simply return the err
+		default:
+			return err
 		}
 	}
-    return nil
+	// calling the Decode() again using a anonymous struct to check that there is any second JSON in the body. cause
+	// the body should contain only single json body
+	err = dec.Decode(&struct{}{})
+	if !errors.Is(err, io.EOF) {
+		return errors.New("body only contain a single JSON value")
+	}
+	return nil
 }
