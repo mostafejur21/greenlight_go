@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -52,4 +54,43 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data envelo
 	w.Write(js)
 
 	return nil
+}
+
+func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+	// decode the json body into the terget destination (dst)
+	err := json.NewDecoder(r.Body).Decode(dst)
+	if err != nil {
+		// if there is any error during the decoding phase
+		var syntextError *json.SyntaxError
+		var unmarshalTypeError *json.UnmarshalTypeError
+		var invalidUnmarshalError *json.InvalidUnmarshalError
+
+		switch {
+		// use the errors.As() function to check weather the error has a type of *json.SyntaxError
+		case errors.As(err, &syntextError):
+			return fmt.Errorf("body contains badly formed JSON (at the %d)", syntextError.Offset)
+		// In some circumstances Decode() may also return an io.ErrUnexpectedEOF error
+		// for syntax errors in the JSON. So we check for this using errors.Is() and
+		// return a generic error message.
+		case errors.Is(err, io.ErrUnexpectedEOF):
+			return errors.New("body contain badly-formed JSON")
+
+		case errors.As(err, &unmarshalTypeError):
+			if unmarshalTypeError.Field != "" {
+				return fmt.Errorf("stop contains incorrect JSON type for field %q", unmarshalTypeError.Field)
+			}
+
+			return fmt.Errorf("body contains badly formed JSON (at the %d)", syntextError.Offset)
+        case errors.Is(err, io.EOF):
+            return errors.New("body must not be empty")
+        // this json.InvalidUnmarshalError error will be returned if we pass something that is not
+        // a non-nil pointer to Decode(), we catch that error and panic and stop the server
+        case errors.As(err, &invalidUnmarshalError):
+            panic(err)
+        // for anything else, we just simply return the err
+        default:
+            return err
+		}
+	}
+    return nil
 }
