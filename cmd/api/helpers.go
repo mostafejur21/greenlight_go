@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"structs"
 
 	"github.com/julienschmidt/httprouter"
 )
