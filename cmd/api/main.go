@@ -20,6 +20,9 @@ type config struct {
 	env  string
     db struct {
         dsn string
+        maxOpenConns int
+        maxIdleConns int
+        maxIdleTime time.Duration
     }
 }
 
@@ -37,6 +40,11 @@ func main() {
     // Read the DSN (Data source name) value from the db-dsn command-line flag into config struct
     // default to using development DSN if no flag is provided
     flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://greenlight:pa55word@localhost/greenlight", "PostgreSQL DSN")
+
+    // read the connection pool settings from the command-line flags into config struct
+    flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
+    flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
+    flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
 
 	flag.Parse()
 
@@ -80,6 +88,15 @@ func openDB(cfg config) (*sql.DB, error) {
     if err != nil {
         return nil, err
     }
+
+    // setting the maxopen connection
+    db.SetMaxOpenConns(cfg.db.maxOpenConns)
+
+    // setting the max idle connection
+    db.SetMaxIdleConns(cfg.db.maxIdleConns)
+
+    // max idle timeout for connections in the pool
+    db.SetConnMaxIdleTime(cfg.db.maxIdleTime)
 
     // Create a context with a 5 second timeout deadline
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
