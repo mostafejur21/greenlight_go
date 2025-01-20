@@ -1,10 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
-	"time"
-
 	"github.com/mostafejur21/greenlight_go/internal/data"
 	"github.com/mostafejur21/greenlight_go/internal/validator"
 )
@@ -58,9 +57,9 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 
 	// send a json response body with a status 201 (created),
 	err = app.writeJSON(w, http.StatusCreated, envelope{"movie": movie}, headers)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-    }
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request) {
@@ -71,13 +70,14 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	movie := data.Movie{
-		ID:        id,
-		CreatedAt: time.Now(),
-		Title:     "BatMan",
-		RunTime:   102,
-		Genres:    []string{"drama", "action", "war"},
-		Version:   1,
+	movie, err := app.models.Movies.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"movie": movie}, nil)
