@@ -39,7 +39,7 @@ func main() {
 
     // Read the DSN (Data source name) value from the db-dsn command-line flag into config struct
     // default to using development DSN if no flag is provided
-    flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://greenlight:pa55word@localhost/greenlight", "PostgreSQL DSN")
+    flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
 
     // read the connection pool settings from the command-line flags into config struct
     flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
