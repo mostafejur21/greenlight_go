@@ -1,11 +1,49 @@
 package data
 
 import (
+	"database/sql"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/mostafejur21/greenlight_go/internal/validator"
 )
+
 const must_provided string = "must be provided"
+
+// Define a MovieModel struct type which wraps a sql.DB connection pool.
+type MovieModel struct {
+	DB *sql.DB
+}
+
+// Add a placeholder method for inserting a new record in the movies table
+func (m MovieModel) Insert(movie *Movie) error {
+	// Define a SQL query for inserting a new record in the movies table and returning the system-generated data
+ query := `
+        INSERT INTO movies (title, year, runtime, genres)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, created_at, version`
+
+	// Create an args slice containing the values for the placeholder params from the movies struct.
+	args := []any{movie.Title, movie.Year, movie.RunTime, pq.Array(movie.Genres)}
+
+	// Use the DB.QueryRow() method to execute the SQL query on our connection pool,
+	// passing in the args slice as a variadic parameters and scanning the system-generated id, created_at and version value into the movies struct
+	return m.DB.QueryRow(query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
+}
+
+// Add a placeholder method for getting/fetching record from movies table
+
+func (m MovieModel) Get(id int64) (*Movie, error) {
+	return nil, nil
+}
+
+func (m MovieModel) Update(movie *Movie) error {
+	return nil
+}
+
+func (m MovieModel) Delete(id int64) error {
+	return nil
+}
 
 // if we does not include the json annotation for the struct, the default struct value will
 // the json keys. like "ID", "CreatedAt" etc.
