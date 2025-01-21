@@ -59,27 +59,71 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 		&movie.Version,
 	)
 
-    // Handle any errors. if there was no matching movie found, Scan() will
-    // return a sql.ErrNoRows error. we check for this and return our custom error
-    if err != nil {
-        switch {
-        case errors.Is(err, sql.ErrNoRows):
-            return nil, ErrRecordNotFound
-        default:
-        return nil, err
-        }
-    }
+	// Handle any errors. if there was no matching movie found, Scan() will
+	// return a sql.ErrNoRows error. we check for this and return our custom error
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
 
-    // otherwise return a pointer to the movies struct
-    return &movie, nil
+	// otherwise return a pointer to the movies struct
+	return &movie, nil
 
 }
 
 func (m MovieModel) Update(movie *Movie) error {
-	return nil
+	// SQL query for updating method
+	query := `
+    UPDATE movies
+    SET title = $1, year = $2, runtime = $3, genres = $4, version = version + 1
+    WHERE id = $5
+    RETURNING version`
+	// Create an args slice containing the values for the placeholder parameters.
+	args := []any{
+		movie.Title,
+		movie.Year,
+		movie.RunTime,
+		pq.Array(movie.Genres),
+		movie.ID,
+	}
+	// Use the QueryRow() method to execute the query, passing in the args slice as
+	// variadic parameter and scanning the new version value into the movie struct
+	return m.DB.QueryRow(query, args...).Scan(&movie.Version)
 }
 
 func (m MovieModel) Delete(id int64) error {
+	// Return an ErrRecordNotFound error if the id is less then 1
+	if id < 1 {
+		return ErrRecordNotFound
+	}
+
+	// SQL query
+	query := `
+    DELETE FROM movies
+    WHERE id = $1`
+
+	// execute the SQL query using the Exec() method, passing the id variable as the value for the
+	// placeholder parameters, The Exec() method return a sql.Result object
+	result, err := m.DB.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	// Calling the RowsAffected() method on the sql.Result object to get the number of
+	// Rows affected by the query
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	// If no rows were affected, we know that the movies table didnot contain a record
+	// with the provided ID at the moment we tried to delete it. In that case, we return an ErrRecordNotFound error
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
 	return nil
 }
 
