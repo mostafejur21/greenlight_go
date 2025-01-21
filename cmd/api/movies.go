@@ -45,7 +45,12 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	// movies struct with the system generated information
 	err = app.models.Movies.Insert(movie)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+        switch {
+        case errors.Is(err, data.ErrEditConflict):
+        app.editConflictResponse(w, r)
+        default:
+            app.serverErrorResponse(w, r, err)
+        }
 		return
 	}
 

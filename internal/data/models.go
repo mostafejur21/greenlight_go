@@ -7,6 +7,7 @@ import (
 
 var (
     ErrRecordNotFound = errors.New("record not found")
+    ErrEditConflict = errors.New("edit conflict")
 )
 
 // The Models struct wraps the MovieModel. we'll add other models to this,
