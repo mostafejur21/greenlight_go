@@ -45,12 +45,12 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	// movies struct with the system generated information
 	err = app.models.Movies.Insert(movie)
 	if err != nil {
-        switch {
-        case errors.Is(err, data.ErrEditConflict):
-        app.editConflictResponse(w, r)
-        default:
-            app.serverErrorResponse(w, r, err)
-        }
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			app.editConflictResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 
@@ -188,4 +188,41 @@ func (app *application) deleteMovieHandler(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
+}
+
+func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Title  string
+		Genres []string
+		data.Filters
+	}
+
+	// Initialize a new validator instance.
+	v := validator.New()
+
+	// Call the r.Url.Query() to get the url.values map containig the query string data.
+	qs := r.URL.Query()
+
+	// using our readCSV/readInt/readString helper function to extract the title and genres query string value
+	input.Title = app.readString(qs, "title", "")
+	input.Genres = app.readCSV(qs, "genres", []string{})
+
+	// reading the Filters
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+
+	// Extract the sort query string value, falling back to id if it not provided
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+
+	// adding the sort safelist value for checking
+	input.Filters.SortSafelist = []string{"id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime"}
+
+    // Execute the validaton check on the Filters struct and send a response
+	// check the validator instance for any errors and use the failedValidationResponse()
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	fmt.Fprintf(w, "%+v\n", input)
 }
