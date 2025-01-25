@@ -87,6 +87,56 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 
 }
 
+// GetAll() method which will returns a slice of movies.
+func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
+	query := `
+    SELECT id, created_at, title, year, runtime, genres, version
+    FROM movies
+    ORDER BY id`
+
+	// Create a context with a 3 second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Use the QueryContext() to execute the query. This will return a sql.Rows result set
+	// containing the result
+	rows, err := m.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	// defer the rows to ensure that the result set is closed before GetAll() returns.
+	defer rows.Close()
+
+	// initialize an empty slice to hold the movie data.
+	movies := []*Movie{}
+
+	// Use rows.Next to iterate through the rows in the resultset.
+	for rows.Next() {
+		var movie Movie
+
+		err := rows.Scan(
+			&movie.ID,
+			&movie.CreatedAt,
+			&movie.Title,
+			&movie.Year,
+			&movie.RunTime,
+			pq.Array(&movie.Genres),
+			&movie.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		movies = append(movies, &movie)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return movies, nil
+}
+
 func (m MovieModel) Update(movie *Movie) error {
 	// SQL query for updating method
 	query := `

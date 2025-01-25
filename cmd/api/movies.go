@@ -217,12 +217,22 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 	// adding the sort safelist value for checking
 	input.Filters.SortSafelist = []string{"id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime"}
 
-    // Execute the validaton check on the Filters struct and send a response
+	// Execute the validaton check on the Filters struct and send a response
 	// check the validator instance for any errors and use the failedValidationResponse()
 	if data.ValidateFilters(v, input.Filters); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
-	fmt.Fprintf(w, "%+v\n", input)
+	// Calling the GetAll() method to retrive the movies, passing in the various filter
+	movies, err := app.models.Movies.GetAll(input.Title, input.Genres, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"movies": movies}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
