@@ -46,7 +46,7 @@ type application struct {
 	logger *slog.Logger
 	models data.Models
 	mailer mailer.Mailer
-	wg     sync.WaitGroup // sync.WaitGroup is for checking the running background goroutine
+    wg sync.WaitGroup
 }
 
 func main() {
@@ -69,12 +69,12 @@ func main() {
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
 
-	//SMTP server configuration
-	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
-	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
-	flag.StringVar(&cfg.smtp.username, "smtp-username", "ceec144f7736ce", "SMTP username")
-	flag.StringVar(&cfg.smtp.password, "smtp-password", "f159be0ee454eb", "SMTP password")
-	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Greenlight <no-reply@greenlight.alexedwards.net>", "SMTP sender")
+    //SMTP server configuration
+    flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
+    flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
+    flag.StringVar(&cfg.smtp.username, "smtp-username", "ceec144f7736ce", "SMTP username")
+    flag.StringVar(&cfg.smtp.password, "smtp-password", "f159be0ee454eb", "SMTP password")
+    flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Greenlight <no-reply@greenlight.alexedwards.net>", "SMTP sender")
 
 	flag.Parse()
 
@@ -93,7 +93,7 @@ func main() {
 		config: cfg,
 		logger: logger,
 		models: data.NewModels(db),
-		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
+        mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
 	}
 
 	err = app.serve()
