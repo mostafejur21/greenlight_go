@@ -55,16 +55,36 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		}
 		return
 	}
-	// send the mail to the user's email using SMTP mail
-	err = app.mailer.Send(user.Email, "user_welcome.tmpl", user)
-
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-		return
-	}
-
+	// background go routine for sending the email
+	//	go func() {
+	//        // running a deferred function which uses recover() to catch any panic, and log an
+	//        // error message instead of terminating the application
+	//        defer func() {
+	//            if err := recover();  err != nil {
+	//                app.logger.Error(fmt.Sprintf("%v", err))
+	//            }
+	//        }()
+	//		// send the mail to the user's email using SMTP mail
+	//		err = app.mailer.Send(user.Email, "user_welcome.tmpl", user)
+	//
+	//		if err != nil {
+	//			// if there is an error sending the email then we use the
+	//			// app.logger.Error() helper to manage it
+	//			app.logger.Error(err.Error())
+	//		}
+	//
+	//	}()
+	// Using the app.background() helper function to replace the background goroutine
+	app.background(func() {
+		err = app.mailer.Send(user.Email, "user_welcome.tmpl", user)
+		if err != nil {
+			app.logger.Error(err.Error())
+		}
+	})
 	// send an json response to the client
-	err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, nil)
+	// change code 202 instead of 201, this StatusAccepted indecates that the request has been accepted
+	// for processing, but the processing has not been completed because of the background go routine
+	err = app.writeJSON(w, http.StatusAccepted, envelope{"user": user}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
