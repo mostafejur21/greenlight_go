@@ -1,14 +1,74 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/mostafejur21/greenlight_go/internal/data"
+	"github.com/mostafejur21/greenlight_go/internal/validator"
 	"golang.org/x/time/rate"
 )
+
+func (app *application) authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// Add "Very: Authorization" header to the response. this indicates to any
+		// caches that the response may very based on the value of the Authorization header
+		w.Header().Add("Very", "Authorization")
+
+		// retrive any Authorization header from the request
+		authorizationHeader := r.Header.Get("Authorization")
+
+		// If no authorizationHeader found, then use contextSetUser() helper
+		if authorizationHeader == "" {
+			r = app.contextSetUser(r, data.AnonymousUser)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Otherwise, we except the value of the Authorization header to be in the format
+		// "Bearer <token>", we try to split into its constituent part
+		headerParts := strings.Split(authorizationHeader, " ")
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// Extract the actual authenticate token from the parts
+		token := headerParts[1]
+
+		// Validate
+		v := validator.New()
+
+		if data.ValidateTokenPlaintext(v, token); !v.Valid() {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// Retrieve the details for the user associated with the token
+		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrRecordNotFound):
+				app.invalidAuthenticationTokenResponse(w, r)
+			default:
+				app.serverErrorResponse(w, r, err)
+			}
+			return
+		}
+
+		// Call the contextSetUser() helper to add the user information request context
+		r = app.contextSetUser(r, user)
+
+		//call the next handler in the chain
+		next.ServeHTTP(w, r)
+	})
+}
 
 func (app *application) recoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -88,8 +148,8 @@ func (app *application) rateLimiter(next http.Handler) http.Handler {
 			// initialize a new rate Limiter and add the ip and limiter to the map
 			if _, found := clients[ip]; !found {
 				clients[ip] = &client{
-                    limiter: rate.NewLimiter(rate.Limit(app.config.limiter.rps), app.config.limiter.burst),
-                }
+					limiter: rate.NewLimiter(rate.Limit(app.config.limiter.rps), app.config.limiter.burst),
+				}
 			}
 
 			// update the last seen time for the client

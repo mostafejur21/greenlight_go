@@ -13,6 +13,9 @@ import (
 
 var (
 	ErrDuplicateEmail = errors.New("duplicate email")
+
+	// AnonymousUser variable
+	AnonymousUser = &User{}
 )
 
 // Defined a UserModel struct which wraps the sql connection pool
@@ -28,6 +31,10 @@ type User struct {
 	Password  password  `json:"-"`
 	Activated bool      `json:"activated"`
 	Version   int       `json:"-"`
+}
+
+func (u *User) IsAnonymous() bool {
+    return u == AnonymousUser
 }
 
 func (m UserModel) Insert(user *User) error {
@@ -185,7 +192,7 @@ func (m UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error)
 	// Calculate the SHA-256 hash of the plaintext token provided by the client.
 	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
 
-    query := `
+	query := `
     SELECT users.id, users.created_at, users.name, users.email, users.password_hash, users.activated, users.version
     FROM users
     INNER JOIN tokens

@@ -12,15 +12,16 @@ import (
 )
 
 const (
-	ScopeActivation = "activation"
+	ScopeActivation     = "activation"
+	ScopeAuthentication = "authentication"
 )
 
 type Token struct {
-	Plaintext string
-	Hash      []byte
-	UserId    int64
-	Expiry    time.Time
-	Scope     string
+	Plaintext string    `json:"token"`
+	Hash      []byte    `json:"-"`
+	UserId    int64     `json:"-"`
+	Expiry    time.Time `json:"expiry"`
+	Scope     string    `json:"-"`
 }
 
 func generateToken(userId int64, ttl time.Duration, scope string) (*Token, error) {
@@ -62,52 +63,52 @@ func generateToken(userId int64, ttl time.Duration, scope string) (*Token, error
 }
 
 // Validate plaintext token provided by the user
-func ValidateTokenPlaintext (v *validator.Validator, tokenPlaintext string) {
-    v.Check(tokenPlaintext != "", "token", "must be provided")
-    v.Check(len(tokenPlaintext) == 26, "token", "must be 26 bytes long")
+func ValidateTokenPlaintext(v *validator.Validator, tokenPlaintext string) {
+	v.Check(tokenPlaintext != "", "token", "must be provided")
+	v.Check(len(tokenPlaintext) == 26, "token", "must be 26 bytes long")
 }
 
 // Define the TokenModel type.
 type TokenModel struct {
-    DB *sql.DB
+	DB *sql.DB
 }
 
 // The New() method is a shortcut which creates a new token struct and then inserts the data
 func (m TokenModel) New(userId int64, ttl time.Duration, scope string) (*Token, error) {
-    token, err := generateToken(userId, ttl, scope)
-    if err != nil {
-        return nil, err
-    }
+	token, err := generateToken(userId, ttl, scope)
+	if err != nil {
+		return nil, err
+	}
 
-    err = m.Insert(token)
-    if err != nil {
-        return nil, err
-    }
-    return token, err
+	err = m.Insert(token)
+	if err != nil {
+		return nil, err
+	}
+	return token, err
 }
 
 // Insert() method adds the data for a specific token to the tokens table
 func (m TokenModel) Insert(token *Token) error {
-    query := `
+	query := `
         INSERT INTO tokens (hash, user_id, expiry, scope)
         VALUES ($1, $2, $3, $4)`
-    args := []any{token.Hash, token.UserId, token.Expiry, token.Scope}
+	args := []any{token.Hash, token.UserId, token.Expiry, token.Scope}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-    _, err := m.DB.ExecContext(ctx, query, args...)
-    return err
+	_, err := m.DB.ExecContext(ctx, query, args...)
+	return err
 }
 
 // Delete() token
 func (m TokenModel) DeleteAllForUser(scope string, userId int64) error {
-    query := `
+	query := `
         DELETE FROM tokens
         WHERE scope = $1 AND user_id = $2`
-    ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-    _, err := m.DB.ExecContext(ctx, query, scope, userId)
-    return err
+	_, err := m.DB.ExecContext(ctx, query, scope, userId)
+	return err
 }

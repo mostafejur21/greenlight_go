@@ -171,12 +171,12 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 
 // the background() helper accepts an arbitrary function as a parameter.
 func (app *application) background(fn func()) {
-    // incrementing the WaitGroup counter
-    app.wg.Add(1)
+	// incrementing the WaitGroup counter
+	app.wg.Add(1)
 	// launch a backgroun goroutine
 	go func() {
-        // defer the done
-        app.wg.Done()
+		// defer the done
+		app.wg.Done()
 		// Recover any panic
 		defer func() {
 			if err := recover(); err != nil {
