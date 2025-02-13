@@ -166,3 +166,34 @@ func (app *application) rateLimiter(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// Check that a user is both authenticate and activated
+func (app *application) requireActivatedUser(next http.HandlerFunc) http.HandlerFunc {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Use the contextGetUser() helper to retrive the user info from the request context
+		user := app.contextGetUser(r)
+
+		if !user.Activated {
+			app.inactiveAccountResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+
+	// before return this middleware func, wrap with the requireAuthenticatedUser() middleware.
+	// this middleware also call the requireAuthenticatedUser() middleware
+	return app.requireAuthenticatedUser(fn)
+}
+
+// New middleware for checking that a user is not anonymous
+func (app *application) requireAuthenticatedUser(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+		if user.IsAnonymous() {
+			app.authenticationRequiredResponse(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
